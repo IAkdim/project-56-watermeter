@@ -1,5 +1,6 @@
 #include "LoRaWan_APP.h"
-
+uint8_t waterverbruik = 20;
+uint8_t multiplierwater = 2;
 /* OTAA para*/
 uint8_t devEui[] = { 0x70, 0xB3, 0xD5, 0x7E, 0xD8, 0x00, 0x21, 0x3E };
 uint8_t appEui[] = { 0x00, 0x00, 0xA8, 0x6D, 0x66, 0xFA, 0x12, 0xF4 };
@@ -66,17 +67,10 @@ static void prepareTxFrame(uint8_t port)
      *the max value for different DR can be found in MaxPayloadOfDatarateCN470 refer to DataratesCN470 and
      *BandwidthsCN470 in "RegionCN470.h".
      */
-    float temperatuur = random(0, 100);
-    float vochtigheid = random(0, 100);
-
-    int int_temp = temperatuur * 100; // verwijder komma
-    int int_hum = vochtigheid * 10; // komma verwijderen
-
-    appDataSize = 4;
-    appData[0] = int_temp >> 8;
-    appData[1] = int_temp;
-    appData[2] = int_hum >> 8;
-    appData[3] = int_hum;
+    appDataSize = 2;
+    Serial.println(waterverbruik);
+    appData[0] = waterverbruik;
+    appData[1] = multiplierwater;
 }
 
 // if true, next uplink will add MOTE_MAC_DEVICE_TIME_REQ
@@ -90,6 +84,7 @@ void setup()
 
 void loop()
 {
+
     switch (deviceState) {
     case DEVICE_STATE_INIT: {
 #if (LORAWAN_DEVEUI_AUTO)
@@ -103,6 +98,11 @@ void loop()
         break;
     }
     case DEVICE_STATE_SEND: {
+        waterverbruik++;
+        if(waterverbruik == 200){
+            multiplierwater++;
+            waterverbruik=0;
+        }
         prepareTxFrame(appPort);
         LoRaWAN.send();
         delay(10000);
