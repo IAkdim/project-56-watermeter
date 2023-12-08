@@ -1,6 +1,10 @@
 #include "LoRaWan_APP.h"
-uint8_t waterverbruik = 20;
-uint8_t multiplierwater = 2;
+
+unsigned long previousMillis = 0;
+const long interval = 1 * 60 * 1000;  // 15 minutes in milliseconds
+
+uint8_t waterverbruik = 0;
+uint8_t multiplierwater = 0;
 /* OTAA para*/
 uint8_t devEui[] = { 0x70, 0xB3, 0xD5, 0x7E, 0xD8, 0x00, 0x21, 0x3E };
 uint8_t appEui[] = { 0x00, 0x00, 0xA8, 0x6D, 0x66, 0xFA, 0x12, 0xF4 };
@@ -78,12 +82,29 @@ static void prepareTxFrame(uint8_t port)
 void setup()
 {
     Serial.begin(115200);
+    Serial.println("setup started");
     Mcu.begin();
     deviceState = DEVICE_STATE_INIT;
 }
 
 void loop()
-{
+{   
+    unsigned long currentMillis = millis();
+
+    if (currentMillis - previousMillis >= interval) {
+        Serial.print("data send try?");
+        deviceState = DEVICE_STATE_SEND;
+        waterverbruik++;
+        if(waterverbruik == 200){
+            multiplierwater++;
+            waterverbruik=0;
+        }
+        prepareTxFrame(appPort);
+        LoRaWAN.send();
+
+        // Reset the timer
+        previousMillis = currentMillis;
+    }
 
     switch (deviceState) {
     case DEVICE_STATE_INIT: {
@@ -98,14 +119,11 @@ void loop()
         break;
     }
     case DEVICE_STATE_SEND: {
-        waterverbruik++;
-        if(waterverbruik == 200){
-            multiplierwater++;
-            waterverbruik=0;
-        }
-        prepareTxFrame(appPort);
-        LoRaWAN.send();
-        delay(10000);
+        
+        //prepareTxFrame(appPort);
+        //LoRaWAN.send();
+        Serial.print("DEVICESEND");
+
         deviceState = DEVICE_STATE_CYCLE;
         break;
     }
