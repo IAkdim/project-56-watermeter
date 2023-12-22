@@ -1,9 +1,9 @@
-#include <Arduino.h>
 #include "LoRaWan_APP.h"
+#include <Arduino.h>
 #define WATERPIN 6
 
 unsigned long previousMillisSendlora = 0;
-const long intervalLoraSend = 1 * 60 * 1000;  // 15 minutes in milliseconds
+const long intervalLoraSend = 1 * 60 * 1000; // 15 minutes in milliseconds
 volatile bool newPulse = false;
 
 const int arraySize = 24;
@@ -81,57 +81,58 @@ static void prepareTxFrame(uint8_t port)
      *the max value for different DR can be found in MaxPayloadOfDatarateCN470 refer to DataratesCN470 and
      *BandwidthsCN470 in "RegionCN470.h".
      */
-    //uint8_t appData[arraySize * sizeof(uint16_t)];
+    // uint8_t appData[arraySize * sizeof(uint16_t)];
 
     appDataSize = arraySize * sizeof(uint16_t);
 
     for (int i = 0; i < arraySize; ++i) {
-      uint16_t value = waterDataArray[i];
-      appData[i * sizeof(uint16_t)] = lowByte(value);
-      appData[i * sizeof(uint16_t) + 1] = highByte(value);
+        uint16_t value = waterDataArray[i];
+        appData[i * sizeof(uint16_t)] = lowByte(value);
+        appData[i * sizeof(uint16_t) + 1] = highByte(value);
     }
     for (int i = 0; i < arraySize * sizeof(uint16_t); ++i) {
-      Serial.print(appData[i],HEX);
-      Serial.print(" ");
+        Serial.print(appData[i]);
+        Serial.print(" ");
     }
     Serial.println();
 }
 
 // if true, next uplink will add MOTE_MAC_DEVICE_TIME_REQ
-void pulseCounter() {
+void pulseCounter()
+{
     waterverbruik++;
     newPulse = true;
 }
-void saveDataToArray() {
-  // Save waterverbruik to the array
-  Serial.println(waterverbruik);
-  waterDataArray[currentIndex] = waterverbruik;
-  waterverbruik = random(0,255); 
-  Serial.println(waterverbruik);
-} 
+void saveDataToArray()
+{
+    // Save waterverbruik to the array
+    Serial.println(waterverbruik);
+    waterDataArray[currentIndex] = waterverbruik;
+    waterverbruik = random(0, 255);
+    Serial.println(waterverbruik);
+}
 void setup()
 {
     Serial.begin(115200);
     Serial.println("setup started");
-    //attachInterrupt(digitalPinToInterrupt(WATERPIN), pulseCounter, RISING);    
+    // attachInterrupt(digitalPinToInterrupt(WATERPIN), pulseCounter, RISING);
     Mcu.begin();
     deviceState = DEVICE_STATE_INIT;
     Serial.print("Water Data Array: ");
     for (int i = 0; i < arraySize; ++i) {
-      Serial.print(waterDataArray[i],HEX);
-      Serial.print(" ");
+        Serial.print(waterDataArray[i], HEX);
+        Serial.print(" ");
     }
     Serial.println();
     prepareTxFrame(appPort);
-
 }
 
 void loop()
-{   
+{
     unsigned long currentMillis = millis();
-    if(newPulse){
+    if (newPulse) {
         newPulse = false;
-        //Serial.println(waterverbruik);
+        // Serial.println(waterverbruik);
     }
     if (currentMillis - previousMillisSaveData >= intervalSaveData) {
         // Save data to the array every hour
@@ -140,7 +141,7 @@ void loop()
         // Update the timestamp and rotate the index
         previousMillisSaveData = currentMillis;
         currentIndex = (currentIndex + 1) % arraySize;
-      }
+    }
     if (currentMillis - previousMillisSendlora >= intervalLoraSend) {
         Serial.println("data send try?");
         deviceState = DEVICE_STATE_SEND;
@@ -169,9 +170,9 @@ void loop()
         break;
     }
     case DEVICE_STATE_SEND: {
-        
-        //prepareTxFrame(appPort);
-        //LoRaWAN.send();
+
+        // prepareTxFrame(appPort);
+        // LoRaWAN.send();
         Serial.print("DEVICESEND");
 
         deviceState = DEVICE_STATE_CYCLE;
