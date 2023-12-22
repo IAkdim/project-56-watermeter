@@ -1,14 +1,24 @@
 #include "LoRaWan_APP.h"
+#include <Arduino.h>
+#define WATERPIN 6
 
-unsigned long previousMillis = 0;
-const long interval = 1 * 60 * 1000;  // 15 minutes in milliseconds
+unsigned long previousMillisSendlora = 0;
+const long intervalLoraSend = 1 * 60 * 1000; // 15 minutes in milliseconds
+volatile bool newPulse = false;
 
-uint8_t waterverbruik = 0;
-uint8_t multiplierwater = 0;
+const int arraySize = 24;
+uint16_t waterDataArray[arraySize] = {11,22,33,44,55,66,123,234,345,456,567,678,987,11,22,33,44,55,66,123,234,345,456,56};
+unsigned long previousMillisSaveData = 0;
+const long intervalSaveData = 1 * 30 * 1000;
+
+int currentIndex = 0;
+
+uint16_t waterverbruik = 0;
+
 /* OTAA para*/
-uint8_t devEui[] = { 0x70, 0xB3, 0xD5, 0x7E, 0xD8, 0x00, 0x21, 0x3E };
-uint8_t appEui[] = { 0x00, 0x00, 0xA8, 0x6D, 0x66, 0xFA, 0x12, 0xF4 };
-uint8_t appKey[] = { 0x94, 0x60, 0xD7, 0x2F, 0xC7, 0xA5, 0xCA, 0x0E, 0x38, 0xD2, 0x11, 0xC1, 0x37, 0x69, 0x18, 0x0B };
+uint8_t devEui[] = { 0x00, 0x59, 0xAC, 0x00, 0x00, 0x1B, 0x26, 0x3F };
+uint8_t appEui[] = { 0x00, 0x59, 0xAC, 0x00, 0x00, 0x01, 0x0A, 0x8C };
+uint8_t appKey[] = { 0x90, 0xfa, 0x0c, 0x61, 0x75, 0x88, 0xa9, 0x4d, 0x56, 0xc0, 0x83, 0x21, 0x8a, 0xbc, 0x53, 0xae };
 
 /* ABP para*/
 uint8_t nwkSKey[] = { 0x15, 0xb1, 0xd0, 0xef, 0xa4, 0x63, 0xdf, 0xbe, 0x3d, 0x11, 0x18, 0x1e, 0x1e, 0xc7, 0xda, 0x85 };
@@ -71,39 +81,80 @@ static void prepareTxFrame(uint8_t port)
      *the max value for different DR can be found in MaxPayloadOfDatarateCN470 refer to DataratesCN470 and
      *BandwidthsCN470 in "RegionCN470.h".
      */
-    appDataSize = 2;
-    Serial.println(waterverbruik);
-    appData[0] = waterverbruik;
-    appData[1] = multiplierwater;
+    // uint8_t appData[arraySize * sizeof(uint16_t)];
+
+    appDataSize = arraySize * sizeof(uint16_t);
+
+    for (int i = 0; i < arraySize; ++i) {
+        uint16_t value = waterDataArray[i];
+        appData[i * sizeof(uint16_t)] = lowByte(value);
+        appData[i * sizeof(uint16_t) + 1] = highByte(value);
+    }
+    for (int i = 0; i < arraySize * sizeof(uint16_t); ++i) {
+        Serial.print(appData[i]);
+        Serial.print(" ");
+    }
+    Serial.println();
 }
 
 // if true, next uplink will add MOTE_MAC_DEVICE_TIME_REQ
-
+void pulseCounter()
+{
+    waterverbruik++;
+    newPulse = true;
+}
+void saveDataToArray()
+{
+    // Save waterverbruik to the array
+    Serial.println(waterverbruik);
+    waterDataArray[currentIndex] = waterverbruik;
+    waterverbruik = random(0, 512);
+    Serial.println(waterverbruik);
+}
 void setup()
 {
     Serial.begin(115200);
     Serial.println("setup started");
+    // attachInterrupt(digitalPinToInterrupt(WATERPIN), pulseCounter, RISING);
     Mcu.begin();
     deviceState = DEVICE_STATE_INIT;
+    Serial.print("Water Data Array: ");
+    for (int i = 0; i < arraySize; ++i) {
+        Serial.print(waterDataArray[i], HEX);
+        Serial.print(" ");
+    }
+    Serial.println();
+    prepareTxFrame(appPort);
 }
 
 void loop()
-{   
+{
     unsigned long currentMillis = millis();
+    if (newPulse) {
+        newPulse = false;
+        // Serial.println(waterverbruik);
+    }
+    if (currentMillis - previousMillisSaveData >= intervalSaveData) {
+        // Save data to the array every hour
+        saveDataToArray();
 
-    if (currentMillis - previousMillis >= interval) {
-        Serial.print("data send try?");
+        // Update the timestamp and rotate the index
+        previousMillisSaveData = currentMillis;
+        currentIndex = (currentIndex + 1) % arraySize;
+    }
+    if (currentMillis - previousMillisSendlora >= intervalLoraSend) {
+        Serial.println("data send try?");
         deviceState = DEVICE_STATE_SEND;
-        waterverbruik++;
-        if(waterverbruik == 200){
-            multiplierwater++;
-            waterverbruik=0;
-        }
+        // waterverbruik++;
+        // if(waterverbruik == 200){
+        //     multiplierwater++;
+        //     waterverbruik=0;
+        // }
         prepareTxFrame(appPort);
         LoRaWAN.send();
 
         // Reset the timer
-        previousMillis = currentMillis;
+        previousMillisSendlora = currentMillis;
     }
 
     switch (deviceState) {
@@ -119,9 +170,9 @@ void loop()
         break;
     }
     case DEVICE_STATE_SEND: {
-        
-        //prepareTxFrame(appPort);
-        //LoRaWAN.send();
+
+        // prepareTxFrame(appPort);
+        // LoRaWAN.send();
         Serial.print("DEVICESEND");
 
         deviceState = DEVICE_STATE_CYCLE;
