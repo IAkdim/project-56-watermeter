@@ -1,3 +1,5 @@
+// code to get the value of a watermeter and send it to an external source.
+
 #include "LoRaWan_APP.h"
 #include <Arduino.h>
 #define WATERPIN 2 // Change this to the actual pin you're using
